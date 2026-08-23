@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="color-scheme" content="light only"/>
+  <meta name="theme-color" content="#2D3250"/>
   <title>Project SOS – Online Visual Dictionary</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet"/>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet"/>
@@ -21,7 +23,7 @@
       --shadow: 0 8px 32px rgba(45,50,80,.13);
     }
     * { box-sizing: border-box; }
-    html { scroll-behavior: auto; overflow-anchor: none; }
+    html { scroll-behavior: auto; overflow-anchor: none; color-scheme: light only; }
     body {
       font-family: 'Nunito', sans-serif;
       background: var(--white);
@@ -594,7 +596,7 @@ function showPage(id, evt) {
     const el = document.getElementById(pid);
     const nav = document.getElementById('nav-' + pid);
     if (pid === id) {
-      el.style.display = 'block';
+      el.style.display = '';
       el.classList.add('active');
       nav.classList.add('active');
     } else {
