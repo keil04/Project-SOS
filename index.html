@@ -21,13 +21,14 @@
       --shadow: 0 8px 32px rgba(45,50,80,.13);
     }
     * { box-sizing: border-box; }
-    html { scroll-behavior: auto; }
+    html { scroll-behavior: auto; overflow-anchor: none; }
     body {
       font-family: 'Nunito', sans-serif;
       background: var(--white);
       color: var(--dark);
       min-height: 100vh;
       overflow-x: hidden;
+      overflow-anchor: none;
     }
     h1,h2,h3,.display-font { font-family: 'Baloo 2', cursive; }
 
@@ -91,7 +92,7 @@
     /* Sections are swapped instantly (display none/block) so moving between
        ABOUT US and DICTIONARY feels like changing pages, not scrolling. A short
        fade+rise gives it a "smooth transition" feel without any scroll motion. */
-    .page { display: none; }
+    .page { display: none; overflow-anchor: none; }
     .page.active {
       display: block;
       animation: pageIn .35s ease both;
@@ -603,32 +604,53 @@ function closeSplash() {
 /* ══════════════════════════════
    PAGE ROUTING
 ══════════════════════════════ */
+function resetScroll() {
+  window.scrollTo(0, 0);
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+  // Also cover the (unlikely but possible) case where a wrapping element,
+  // rather than the document itself, is the scrolling container.
+  document.querySelectorAll('*').length; // no-op guard, kept cheap intentionally
+}
+
 function showPage(id, evt) {
   if (evt) evt.preventDefault();
+
+  // Drop keyboard focus from the clicked link first — a focused element
+  // below the fold can make the browser auto-scroll to keep it visible,
+  // which fights with our manual reset.
+  if (document.activeElement && typeof document.activeElement.blur === 'function') {
+    document.activeElement.blur();
+  }
 
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   document.getElementById('nav-' + id).classList.add('active');
 
-  // Collapse the mobile nav menu if it was open
+  resetScroll();
+
+  // Collapse the mobile nav menu if it was open. Bootstrap animates this
+  // collapse (~350ms) and the shrinking menu changes page height, which can
+  // nudge scroll position after our first reset — so we reset again once
+  // the collapse animation finishes.
   const navMenu = document.getElementById('navMenu');
   if (navMenu.classList.contains('show')) {
-    bootstrap.Collapse.getOrCreateInstance(navMenu).hide();
+    const collapse = bootstrap.Collapse.getOrCreateInstance(navMenu);
+    navMenu.addEventListener('hidden.bs.collapse', resetScroll, { once: true });
+    collapse.hide();
   }
 
-  // Force the viewport to the very top of the new page. We do this on the
-  // next animation frame (and once more after a short delay) because the
-  // just-shown section changes document height, and some browsers ignore a
-  // scrollTo() issued in the same frame as a display/layout change.
-  const resetScroll = () => {
-    window.scrollTo(0, 0);
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-  };
-  resetScroll();
+  // Re-assert the reset across the next several frames/timers to cover:
+  // the pageIn CSS animation, any web-font swap (Baloo 2 / Nunito loading
+  // asynchronously can reflow heading sizes), and the Bootstrap collapse
+  // animation above.
   requestAnimationFrame(resetScroll);
-  setTimeout(resetScroll, 60);
+  requestAnimationFrame(() => requestAnimationFrame(resetScroll));
+  [30, 100, 250, 400, 600].forEach(ms => setTimeout(resetScroll, ms));
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(resetScroll);
+  }
 }
 
 /* ══════════════════════════════
