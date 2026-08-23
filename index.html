@@ -604,52 +604,75 @@ function closeSplash() {
 /* ══════════════════════════════
    PAGE ROUTING
 ══════════════════════════════ */
-function resetScroll() {
+function jumpToTop(targetEl) {
+  // Force the browser to flush layout first, so it knows the *new* page's
+  // height/position before we tell it where to scroll (this is the part
+  // that was unreliable before: scrollTo() issued before layout settles
+  // gets silently ignored or overridden on some mobile browsers).
+  void document.body.offsetHeight;
+
+  if (targetEl && typeof targetEl.scrollIntoView === 'function') {
+    try {
+      targetEl.scrollIntoView({ behavior: 'instant', block: 'start', inline: 'nearest' });
+    } catch (err) {
+      targetEl.scrollIntoView(true);
+    }
+  }
   window.scrollTo(0, 0);
   document.documentElement.scrollTop = 0;
   document.body.scrollTop = 0;
-  // Also cover the (unlikely but possible) case where a wrapping element,
-  // rather than the document itself, is the scrolling container.
-  document.querySelectorAll('*').length; // no-op guard, kept cheap intentionally
 }
 
 function showPage(id, evt) {
   if (evt) evt.preventDefault();
 
-  // Drop keyboard focus from the clicked link first — a focused element
-  // below the fold can make the browser auto-scroll to keep it visible,
-  // which fights with our manual reset.
+  // Drop keyboard focus from the clicked link/button first — a focused
+  // element can make the browser auto-scroll to keep it in view, which
+  // fights with our manual reset.
   if (document.activeElement && typeof document.activeElement.blur === 'function') {
     document.activeElement.blur();
   }
 
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  document.getElementById('nav-' + id).classList.add('active');
+  // Toggle visibility directly (not just via class) so there is no chance
+  // of a stale inline style or CSS specificity issue leaving two pages
+  // visible/stacked at once, which is what forces you to scroll past the
+  // old page to reach the new one.
+  ['home', 'about', 'dictionary'].forEach(pid => {
+    const el = document.getElementById(pid);
+    const nav = document.getElementById('nav-' + pid);
+    if (pid === id) {
+      el.style.display = 'block';
+      el.classList.add('active');
+      nav.classList.add('active');
+    } else {
+      el.style.display = 'none';
+      el.classList.remove('active');
+      nav.classList.remove('active');
+    }
+  });
 
-  resetScroll();
+  const targetEl = document.getElementById(id);
+  jumpToTop(targetEl);
 
   // Collapse the mobile nav menu if it was open. Bootstrap animates this
   // collapse (~350ms) and the shrinking menu changes page height, which can
-  // nudge scroll position after our first reset — so we reset again once
+  // nudge scroll position after our first reset — so we jump again once
   // the collapse animation finishes.
   const navMenu = document.getElementById('navMenu');
   if (navMenu.classList.contains('show')) {
     const collapse = bootstrap.Collapse.getOrCreateInstance(navMenu);
-    navMenu.addEventListener('hidden.bs.collapse', resetScroll, { once: true });
+    navMenu.addEventListener('hidden.bs.collapse', () => jumpToTop(targetEl), { once: true });
     collapse.hide();
   }
 
-  // Re-assert the reset across the next several frames/timers to cover:
-  // the pageIn CSS animation, any web-font swap (Baloo 2 / Nunito loading
-  // asynchronously can reflow heading sizes), and the Bootstrap collapse
-  // animation above.
-  requestAnimationFrame(resetScroll);
-  requestAnimationFrame(() => requestAnimationFrame(resetScroll));
-  [30, 100, 250, 400, 600].forEach(ms => setTimeout(resetScroll, ms));
+  // Re-assert across the next several frames/timers to outlast the pageIn
+  // CSS animation and any web-font swap (Baloo 2 / Nunito loading
+  // asynchronously can reflow heading sizes after the first jump).
+  requestAnimationFrame(() => jumpToTop(targetEl));
+  requestAnimationFrame(() => requestAnimationFrame(() => jumpToTop(targetEl)));
+  [30, 100, 250, 400, 600].forEach(ms => setTimeout(() => jumpToTop(targetEl), ms));
   if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(resetScroll);
+    document.fonts.ready.then(() => jumpToTop(targetEl));
   }
 }
 
