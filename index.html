@@ -89,9 +89,6 @@
     .nav-link:hover, .nav-link.active { background: rgba(255,255,255,.15); color: #fff !important; }
 
     /* ── PAGES ── */
-    /* Sections are swapped instantly (display none/block) so moving between
-       ABOUT US and DICTIONARY feels like changing pages, not scrolling. A short
-       fade+rise gives it a "smooth transition" feel without any scroll motion. */
     .page { display: none; overflow-anchor: none; }
     .page.active {
       display: block;
@@ -314,21 +311,30 @@
       background: #fff8e1; border: 2px dashed #ffd54f;
       display: flex; align-items: center; justify-content: center;
       font-size: 1.6rem; color: #b28900;
+      overflow: hidden;
     }
     .fs-letter {
       font-family: 'Baloo 2', cursive; font-weight: 800; font-size: 1rem; color: var(--dark);
     }
 
-    /* E. FSL */
+    /* E. FSL — box grows to fit the media instead of cropping it */
     .fsl-box {
       border-radius: 18px; background: #e0f7fa;
       border: 2px dashed #4dd0e1;
       min-height: 200px; display: flex; flex-direction: column;
       align-items: center; justify-content: center; gap: .6rem;
       color: #00707d; text-align: center; padding: 1.4rem; position: relative;
-      overflow: hidden;
     }
-    .fsl-box img, .fsl-box video { width: 100%; height: 100%; object-fit: contain; position: absolute; inset: 0; }
+    .fsl-box.has-media { padding: .7rem; background: #d7f3f6; }
+    .fsl-box img, .fsl-box video {
+      display: block;
+      max-width: 100%;
+      max-height: 65vh;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      border-radius: 12px;
+    }
     .fsl-icon { font-size: 3rem; }
     .fsl-text { font-size: .85rem; font-weight: 700; max-width: 320px; }
     .fsl-play {
@@ -987,11 +993,13 @@ function openEntry(cat, idx) {
 
   const fslBox = document.getElementById('entryFsl');
   if (item.fsl && item.fsl.type === 'video' && item.fsl.url) {
-    fslBox.innerHTML = `
-      <video src="${item.fsl.url}" controls></video>`;
+    fslBox.classList.add('has-media');
+    fslBox.innerHTML = `<video src="${item.fsl.url}" controls playsinline preload="metadata"></video>`;
   } else if (item.fsl && item.fsl.type === 'image' && item.fsl.url) {
+    fslBox.classList.add('has-media');
     fslBox.innerHTML = `<img src="${item.fsl.url}" alt="FSL sign for ${item.en}">`;
   } else {
+    fslBox.classList.remove('has-media');
     fslBox.innerHTML = `
       <div class="fsl-icon">🤟</div>
       <div class="fsl-text">FSL sign for "${item.en}" will appear here — image or video with a Play button.</div>`;
